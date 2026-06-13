@@ -132,7 +132,7 @@ function Questionnaire() {
     const answers = questionnaire.map((q) => q.answer);
     localStorage.setItem('questionnaireData', JSON.stringify(answers));
     await sendDataToGHL(answers);
-    window.top.location.href = 'https://www.carismawellness.com/thank-you';
+    window.top.location.href = 'https://slimming-seven.vercel.app/weight-loss/thank-you';
   };
 
   const handleAnswerChange = (id, value) => {
