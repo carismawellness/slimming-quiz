@@ -1,0 +1,119 @@
+const GHL_API_URL     = 'https://services.leadconnectorhq.com';
+const GHL_API_KEY     = process.env.GHL_API_KEY;
+const GHL_LOCATION_ID = 'Goi7kzVK7iwe2woxUHkT';
+
+const GHL_CUSTOM_FIELDS = {
+    goals            : 'uu6TYn6RGAVl1d1s7Rs9',
+    problemAreas     : 'VXorCyzx7Gw0hdjYkuKX',
+    timeline         : 'l18NHFHO7obFEeMZxrOS',
+    medication       : 'x7wsAfmm7S50PEPGh4P0',
+    previousAttempts : 'qKJCMdGV8XErgPeYWqls',
+    referralSource   : 'voTIXE4lGyB6mJG1w4RB',
+    consultation     : 'pycNHR5NDcCxntyDsij2',
+};
+
+const ghlHeaders = {
+    'Authorization': `Bearer ${GHL_API_KEY}`,
+    'Version'      : '2021-07-28',
+    'Content-Type' : 'application/json',
+};
+
+const CORS = {
+    'Access-Control-Allow-Origin' : '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+module.exports = async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin',  '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST')   return res.status(405).end('Method Not Allowed');
+
+    try {
+        const data = req.body;
+
+        // data[0] goals (array), data[1] problem areas (array),
+        // data[2] timeline, data[3] medication, data[4] previous attempts,
+        // data[5] referral, data[6] consultation, data[7] contact info
+        const goals           = Array.isArray(data[0]) ? data[0].join(', ') : data[0];
+        const problemAreas    = Array.isArray(data[1]) ? data[1].join(', ') : data[1];
+        const timeline        = data[2];
+        const medication      = data[3];
+        const prevAttempts    = data[4];
+        const referral        = data[5];
+        const consultation    = data[6];
+        const contactInfo     = data[7];
+
+        const contactPayload = {
+            locationId  : GHL_LOCATION_ID,
+            firstName   : contactInfo.first_name,
+            lastName    : contactInfo.surname,
+            email       : contactInfo.email,
+            phone       : contactInfo.phone,
+            source      : 'Slimming Quiz',
+            tags        : [
+                'slimming-quiz-lead',
+                `timeline:${timeline}`,
+                `medication:${medication}`,
+                `consultation:${consultation}`,
+                `heard-via:${referral}`,
+            ],
+            customFields: [
+                { id: GHL_CUSTOM_FIELDS.goals,            value: goals },
+                { id: GHL_CUSTOM_FIELDS.problemAreas,     value: problemAreas },
+                { id: GHL_CUSTOM_FIELDS.timeline,         value: timeline },
+                { id: GHL_CUSTOM_FIELDS.medication,       value: medication },
+                { id: GHL_CUSTOM_FIELDS.previousAttempts, value: prevAttempts },
+                { id: GHL_CUSTOM_FIELDS.referralSource,   value: referral },
+                { id: GHL_CUSTOM_FIELDS.consultation,     value: consultation },
+            ],
+        };
+
+        // Upsert by email
+        let contactId = null;
+        try {
+            const s = await fetch(
+                `${GHL_API_URL}/contacts/?locationId=${GHL_LOCATION_ID}&email=${encodeURIComponent(contactInfo.email)}&limit=1`,
+                { headers: ghlHeaders }
+            );
+            const sd = await s.json();
+            if (sd?.contacts?.length > 0) contactId = sd.contacts[0].id;
+        } catch (_) {}
+
+        if (contactId) {
+            await fetch(`${GHL_API_URL}/contacts/${contactId}`, {
+                method: 'PUT', headers: ghlHeaders, body: JSON.stringify(contactPayload),
+            });
+        } else {
+            const cr  = await fetch(`${GHL_API_URL}/contacts/`, {
+                method: 'POST', headers: ghlHeaders, body: JSON.stringify(contactPayload),
+            });
+            contactId = (await cr.json())?.contact?.id;
+        }
+
+        // Note with full breakdown
+        if (contactId) {
+            const noteBody = [
+                '--- Slimming Quiz Lead ---',
+                `Goals: ${goals}`,
+                `Problem Areas: ${problemAreas}`,
+                `Timeline: ${timeline}`,
+                `Open to Medication: ${medication}`,
+                `Previous Attempts: ${prevAttempts}`,
+                `Where They Heard About Us: ${referral}`,
+                `Consultation Type: ${consultation}`,
+            ].join('\n');
+
+            await fetch(`${GHL_API_URL}/contacts/${contactId}/notes/`, {
+                method: 'POST', headers: ghlHeaders, body: JSON.stringify({ body: noteBody }),
+            });
+        }
+
+        res.status(200).json({ success: true, contactId });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed: ' + error.message });
+    }
+};
