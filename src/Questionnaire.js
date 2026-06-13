@@ -191,9 +191,9 @@ function Questionnaire() {
   }
 
   return (
-    <div className="min-h-screen flex items-start justify-center lg:pt-8">
+    <div className="flex items-start justify-center lg:pt-8 pb-8">
       <div className='w-full lg:w-1/2'>
-        <div className="min-h-screen p-1 lg:min-h-0 w-full mx-auto">
+        <div className="p-1 w-full mx-auto">
           <h2 className="text-left mb-4 mt-4 font-custom font-thin custom-text-color w-full">
             {questionnaire[currentQuestionIndex].question}
           </h2>
