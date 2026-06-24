@@ -106,16 +106,17 @@ function Questionnaire() {
       setError(null);
     }
     if (currentQuestionIndex === lastIndex) {
-      if (!validateEmail(questionnaire[lastIndex].answer.email)) {
+      const contact = questionnaire[lastIndex].answer;
+      if (!contact.first_name?.trim() || !contact.surname?.trim()) {
+        setError('Please enter your first name and surname.');
+        return;
+      }
+      if (!validateEmail(contact.email)) {
         setError('Please enter a valid email address.');
         return;
       }
-      if (!isPossiblePhoneNumber(questionnaire[lastIndex].answer.phone || '')) {
+      if (!isPossiblePhoneNumber(contact.phone || '')) {
         setError('Please enter a valid phone number.');
-        return;
-      }
-      if (!questionnaire[lastIndex].answer.first_name || !questionnaire[lastIndex].answer.surname) {
-        setError('Please enter your name.');
         return;
       }
     }
@@ -189,7 +190,7 @@ function Questionnaire() {
   }
 
   return (
-    <div className="flex items-start justify-center lg:pt-8 pb-8">
+    <div className="min-h-screen max-h-screen overflow-y-auto flex items-start justify-center lg:pt-8 pb-8">
       <div className='w-full lg:w-1/2'>
         <div className="p-1 w-full mx-auto">
           <h2 className="text-left mb-4 mt-4 font-custom font-thin custom-text-color w-full">
